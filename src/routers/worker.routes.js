@@ -7,7 +7,8 @@ import {
     registerWorkerStep2,
     getAcceptedJobsByWorker ,
     registerWorkerStep3,
-    getWorkerById
+    getWorkerById,
+    verifyContractor
 } from '../controllers/worker.controller.js';
 import upload from '../middleware/multer.middleware.js';
 
@@ -15,6 +16,7 @@ const router = express.Router();
 
 router.post('/add-worker', addWorker);
 router.post('/add-worker-type', registerWorkerStep2);
+router.post('/verify-contractor', verifyContractor);
 router.post('/add/worker-kyc', 
     upload.fields([
       { name: 'aadhaarCardImage', maxCount: 1 },

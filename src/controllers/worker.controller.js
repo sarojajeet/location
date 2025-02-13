@@ -4,10 +4,10 @@ import Job from "../models/job.model.js"
 
 export const addWorker = async (req, res) => {
     try {
-      const { fullname, email, password } = req.body; // Extract data from request body
+      const { fullname, email, password,phoneNumber } = req.body; // Extract data from request body
   
       // Basic validation
-      if (!fullname || !email || !password) {
+      if (!fullname || !email || !password ||!phoneNumber) {
         return res.status(400).json({ error: 'All fields are required' });
       }
   
@@ -22,6 +22,7 @@ export const addWorker = async (req, res) => {
         fullname,
         email,
         password, 
+        phoneNumber
       });
   
       // Save the user to the database
@@ -138,6 +139,37 @@ export const registerWorkerStep2 = async (req, res) => {
     res.status(500).json({ message: 'Server error', error });
   }
 };
+
+
+
+export const verifyContractor = async (req, res) => {
+  try {
+    const { contractorId } = req.body;
+
+    if (!contractorId) {
+      return res.status(400).json({ message: 'Contractor ID is required' });
+    }
+
+    const contractor = await Worker.findById(contractorId);
+
+    if (!contractor) {
+      return res.status(404).json({ message: 'Invalid Contractor ID' });
+    }
+
+    // Ensure the workerType is "contractor"
+    if (contractor.workerType !== 'contractor') {
+      return res.status(403).json({ message: 'Worker is not a contractor' });
+    }
+
+    res.status(200).json({ message: 'Contractor verified successfully', contractor });
+
+  } catch (error) {
+    console.error("Error verifying contractor:", error.message);
+    res.status(500).json({ message: 'Server error', error });
+  }
+};
+
+
 
 export const registerWorkerStep3 = async (req, res) => {
   try {

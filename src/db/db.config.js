@@ -7,10 +7,8 @@ const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI || 8000 , {
   
-      // useNewUrlParser: true,
-      // useUnifiedTopology: true,
-      // Remove useCreateIndex, as it is deprecated
-      // useCreateIndex: true,
+      tls: true, // Enable TLS (SSL)
+      tlsAllowInvalidCertificates: true, // Allow self-signed certs (for testing)
     });
     console.log('MongoDB connected successfully');
    

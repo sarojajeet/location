@@ -174,6 +174,8 @@ export const sendOtp = async (req, res) => {
 
 
 
+import Worker from "../models/worker.model.js"
+
 export const verifyOtp = async (req, res) => {
   try {
     const { phoneNumber, otp } = req.body;
@@ -192,7 +194,23 @@ export const verifyOtp = async (req, res) => {
       return res.status(400).json({ error: "Invalid OTP" });
     }
 
-    await OtpModel.deleteOne({ phoneNumber }); // Delete OTP after verification
+    // Delete OTP after verification
+    await OtpModel.deleteOne({ phoneNumber });
+
+    // Find user by phone number
+    const worker = await Worker.findOne({ phoneNumber });
+
+    if (worker) {
+      return res.json({
+        message: "OTP verified successfully",
+        worker: {
+          id: worker._id,
+          name: worker.name,
+          email: worker.email,
+          phoneNumber: worker.phoneNumber,
+        },
+      });
+    }
 
     res.json({ message: "OTP verified successfully" });
   } catch (error) {
@@ -200,4 +218,5 @@ export const verifyOtp = async (req, res) => {
     res.status(500).json({ error: "Failed to verify OTP" });
   }
 };
+
 

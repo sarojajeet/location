@@ -15,6 +15,11 @@ const workerSchema = new mongoose.Schema({
     lowercase: true, 
     match: [/.+@.+\..+/, 'Please enter a valid email'], 
   },
+  phoneNumber: {
+    type: String,
+    required: true,
+    unique: true,
+  },
   password: {
     type: String,
     required: true,
