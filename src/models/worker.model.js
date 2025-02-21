@@ -20,11 +20,6 @@ const workerSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
-  password: {
-    type: String,
-    required: true,
-    minlength: 6,
-  },
   workerType: {
     type: String,
     enum: ['self worker', 'contractor', 'worker under contractor'],

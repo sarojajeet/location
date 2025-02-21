@@ -4,10 +4,10 @@ import Job from "../models/job.model.js"
 
 export const addWorker = async (req, res) => {
     try {
-      const { fullname, email, password,phoneNumber } = req.body; // Extract data from request body
+      const { fullname, email,phoneNumber } = req.body; // Extract data from request body
   
       // Basic validation
-      if (!fullname || !email || !password ||!phoneNumber) {
+      if (!fullname || !email  ||!phoneNumber) {
         return res.status(400).json({ error: 'All fields are required' });
       }
   
@@ -21,7 +21,7 @@ export const addWorker = async (req, res) => {
       const newWorker = new Worker({
         fullname,
         email,
-        password, 
+    
         phoneNumber
       });
   
@@ -42,75 +42,6 @@ export const addWorker = async (req, res) => {
       res.status(500).json({ error: 'Internal Server Error' });
     }
   };
-
-export const acceptJob = async (req, res) => {
-    try {
-      const { jobId, workerId } = req.body;
-  
-      if (!jobId || !workerId) {
-        return res.status(400).json({ error: "Job ID and worker ID are required." });
-      }
-  
-      // Find the job by ID
-      const job = await Job.findById(jobId);
-  
-      if (!job) {
-        return res.status(404).json({ error: "Job not found." });
-      }
-  
-      if (job.status !== "open") {
-        return res.status(400).json({ error: "Job is no longer available for acceptance." });
-      }
-  
-      // Update the job's status to 'accepted' and assign the user
-      job.status = "accepted";
-      job.workerId = workerId;
-  
-      await job.save();
-  
-      res.status(200).json({ message: "Job accepted successfully.", job });
-    } catch (error) {
-      console.error("Error accepting job:", error);
-      res.status(500).json({ error: error.message });
-    }
-  };
-
-  // Controller to get jobs within 15 km
-export const getNearJobs = async (req, res) => {
-    try {
-        const { longitude, latitude } = req.query;
-    
-        if (!longitude || !latitude) {
-          return res.status(400).json({ error: "Longitude and latitude are required." });
-        }
-    
-        const normalizedLongitude = normalizeCoordinate(parseFloat(longitude));
-        const normalizedLatitude = normalizeCoordinate(parseFloat(latitude));
-    
-        const jobs = await Job.find({
-          location: {
-            $near: {
-              $geometry: {
-                type: "Point",
-                coordinates: [normalizedLongitude, normalizedLatitude],
-              },
-              $maxDistance: 18000, // 18 km radius for tolerance
-            },
-          },
-          status: "open", // Only return open jobs
-        });
-    
-        if (jobs.length === 0) {
-          return res.status(200).json({ message: "No jobs found within the range." });
-        }
-    
-        res.json(jobs);
-      } catch (error) {
-        console.error("Error finding nearby jobs:", error);
-        res.status(500).json({ error: error.message });
-      }
-};
-
 
 export const registerWorkerStep2 = async (req, res) => {
   try {
@@ -141,7 +72,6 @@ export const registerWorkerStep2 = async (req, res) => {
 };
 
 
-
 export const verifyContractor = async (req, res) => {
   try {
     const { contractorId } = req.body;
@@ -168,7 +98,6 @@ export const verifyContractor = async (req, res) => {
     res.status(500).json({ message: 'Server error', error });
   }
 };
-
 
 
 export const registerWorkerStep3 = async (req, res) => {
@@ -247,3 +176,71 @@ export const getAcceptedJobsByWorker = async (req, res) => {
       res.status(500).json({ error: error.message });
     }
   };
+
+  export const acceptJob = async (req, res) => {
+    try {
+      const { jobId, workerId } = req.body;
+  
+      if (!jobId || !workerId) {
+        return res.status(400).json({ error: "Job ID and worker ID are required." });
+      }
+  
+      // Find the job by ID
+      const job = await Job.findById(jobId);
+  
+      if (!job) {
+        return res.status(404).json({ error: "Job not found." });
+      }
+  
+      if (job.status !== "open") {
+        return res.status(400).json({ error: "Job is no longer available for acceptance." });
+      }
+  
+      // Update the job's status to 'accepted' and assign the user
+      job.status = "accepted";
+      job.workerId = workerId;
+  
+      await job.save();
+  
+      res.status(200).json({ message: "Job accepted successfully.", job });
+    } catch (error) {
+      console.error("Error accepting job:", error);
+      res.status(500).json({ error: error.message });
+    }
+  };
+
+  // Controller to get jobs within 15 km
+export const getNearJobs = async (req, res) => {
+    try {
+        const { longitude, latitude } = req.query;
+    
+        if (!longitude || !latitude) {
+          return res.status(400).json({ error: "Longitude and latitude are required." });
+        }
+    
+        const normalizedLongitude = normalizeCoordinate(parseFloat(longitude));
+        const normalizedLatitude = normalizeCoordinate(parseFloat(latitude));
+    
+        const jobs = await Job.find({
+          location: {
+            $near: {
+              $geometry: {
+                type: "Point",
+                coordinates: [normalizedLongitude, normalizedLatitude],
+              },
+              $maxDistance: 18000, // 18 km radius for tolerance
+            },
+          },
+          status: "open", // Only return open jobs
+        });
+    
+        if (jobs.length === 0) {
+          return res.status(200).json({ message: "No jobs found within the range." });
+        }
+    
+        res.json(jobs);
+      } catch (error) {
+        console.error("Error finding nearby jobs:", error);
+        res.status(500).json({ error: error.message });
+      }
+};
