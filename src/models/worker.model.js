@@ -25,26 +25,26 @@ const workerSchema = new mongoose.Schema({
     enum: ['self worker', 'contractor', 'worker under contractor'],
     required: false,
   },
-  aadhaarCardImage: {
-    type: String,
-    required: false,
+  contractorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Worker', // Links to a contractor if workerType is 'worker under contractor'
+    required: function() { return this.workerType === 'worker under contractor'; }
   },
-  panCardImage: {
+  aadhaarCardImage: String,
+  panCardImage: String,
+  selfie: String,
+  referralCode: {
     type: String,
-    required: false,
-  },
-  selfie: {
-    type: String,
-    required: false,
+    unique: true,
+    trim: true,
   },
   verification: {
     type: Boolean,
-    default: false, // Initially, the worker is not verified
+    default: false,
   },
 }, {
   timestamps: true, 
 });
 
 const Worker = mongoose.model('Worker', workerSchema);
-
 export default Worker;

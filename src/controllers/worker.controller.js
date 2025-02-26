@@ -1,6 +1,9 @@
 import TestUser from '../models/test.model.js';
 import Worker from "../models/worker.model.js"
+import Coin from '../models/coin.model.js';
 import Job from "../models/job.model.js"
+import Contractor from '../models/Contractor.model.js';
+import mongoose from 'mongoose';
 
 export const addWorker = async (req, res) => {
     try {
@@ -16,12 +19,21 @@ export const addWorker = async (req, res) => {
       if (existingUser) {
         return res.status(409).json({ error: 'Email already exists' });
       }
+
+      // Generate a unique referral code
+    let newReferralCode;
+    let isUnique = false;
+    while (!isUnique) {
+      newReferralCode = Math.random().toString(36).substr(2, 8).toUpperCase();
+      const existingCode = await Worker.findOne({ referralCode: newReferralCode });
+      if (!existingCode) isUnique = true;
+    }
   
       // Create a new user
       const newWorker = new Worker({
         fullname,
         email,
-    
+        referralCode: newReferralCode,
         phoneNumber
       });
   
@@ -43,59 +55,147 @@ export const addWorker = async (req, res) => {
     }
   };
 
-export const registerWorkerStep2 = async (req, res) => {
-  try {
-    const { workerId, workerType } = req.body;
-
-    // Validate workerType
-    const validTypes = ['self worker', 'contractor', 'worker under contractor'];
-    if (!validTypes.includes(workerType)) {
-      return res.status(400).json({ message: 'Invalid worker type' });
+  export const updatingWorkerType = async (req, res) => {
+    try {
+      const { workerId, workerType } = req.body;
+  
+      // Validate workerType
+      const validTypes = ['self worker', 'contractor', 'worker under contractor'];
+      if (!validTypes.includes(workerType)) {
+        return res.status(400).json({ message: 'Invalid worker type' });
+      }
+  
+      // Ensure workerId is an ObjectId
+      const workerObjectId = new mongoose.Types.ObjectId(workerId);
+  
+      // Find and update worker
+      const worker = await Worker.findByIdAndUpdate(
+        workerObjectId,
+        { workerType },
+        { new: true }
+      );
+  
+      console.log('Updated Worker:', worker);
+  
+      if (!worker) {
+        return res.status(404).json({ message: 'Worker not found' });
+      }
+  
+      // If worker becomes a contractor, create a new entry in Contractor model
+      if (workerType === 'contractor') {
+        const existingContractor = await Contractor.findOne({ workerId: workerObjectId });
+  
+        console.log('Existing Contractor:', existingContractor);
+  
+        if (!existingContractor) {
+          const newContractor = new Contractor({
+            workerId: worker._id,
+            totalWorkers: 0,
+            workers: [],
+            workType: 'this is work type', // Empty initially, can be updated later
+            locations: [],
+          });
+  
+          await newContractor.save();
+          console.log('New Contractor Added:', newContractor);
+        }
+      }
+  
+      res.status(200).json({ message: 'Worker Type added successfully.', worker });
+  
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ message: 'Server error', error: error.message });
     }
-
-    // Find and update worker
-    const worker = await Worker.findByIdAndUpdate(
-      workerId,
-      { workerType },
-      { new: true }
-    );
-
-    if (!worker) {
-      return res.status(404).json({ message: 'Worker not found' });
-    }
-
-    res.status(200).json({ message: 'Worker Type added successfully.', worker });
-
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error });
-  }
-};
+  };
 
 
 export const verifyContractor = async (req, res) => {
   try {
-    const { contractorId } = req.body;
+    const { contractorId, workerId } = req.body;
 
-    if (!contractorId) {
-      return res.status(400).json({ message: 'Contractor ID is required' });
-    }
-
-    const contractor = await Worker.findById(contractorId);
-
+    // Check if the contractor exists
+    const contractor = await Contractor.findOne({ _id: contractorId });
     if (!contractor) {
-      return res.status(404).json({ message: 'Invalid Contractor ID' });
+      return res.status(404).json({ message: 'Contractor not found' });
     }
 
-    // Ensure the workerType is "contractor"
-    if (contractor.workerType !== 'contractor') {
-      return res.status(403).json({ message: 'Worker is not a contractor' });
+    // Check if the worker exists and is not already under a contractor
+    const worker = await Worker.findById(workerId);
+    if (!worker) {
+      return res.status(404).json({ message: 'Worker not found' });
+    }
+    if (worker.workerType !== 'worker under contractor') {
+      return res.status(400).json({ message: 'This worker is not registered as a worker under a contractor' });
+    }
+    if (worker.contractorId) {
+      return res.status(400).json({ message: 'Worker is already under a contractor' });
     }
 
-    res.status(200).json({ message: 'Contractor verified successfully', contractor });
+    // Assign the worker to the contractor
+    worker.contractorId = contractorId;
+    await worker.save();
+
+    // Add worker to the contractor's list
+    contractor.workers.push(workerId);
+    contractor.totalWorkers = contractor.workers.length;
+    await contractor.save();
+
+    return res.status(200).json({ message: 'Worker added successfully under contractor' });
 
   } catch (error) {
-    console.error("Error verifying contractor:", error.message);
-    res.status(500).json({ message: 'Server error', error });
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+export const verifyReferralBonus = async (req, res) => {
+  try {
+    const { workerId, referralCode } = req.body; // Get worker's ID and referral code from request body
+
+    // Check if the worker exists
+    const newWorker = await Worker.findById(workerId);
+    if (!newWorker) {
+      return res.status(404).json({ message: 'Worker not found' });
+    }
+
+    // Check if a referral code is provided
+    if (!referralCode) {
+      return res.status(400).json({ message: 'Referral code is required' });
+    }
+
+    // Find the worker who owns this referral code
+    const referrer = await Worker.findOne({ referralCode });
+    if (!referrer) {
+      return res.status(400).json({ message: 'Invalid referral code' });
+    }
+
+    // Find or create coin balances for both workers
+    let referrerCoins = await Coin.findOne({ workerId: referrer._id });
+    let newWorkerCoins = await Coin.findOne({ workerId: newWorker._id });
+
+    if (!referrerCoins) {
+      referrerCoins = new Coin({ workerId: referrer._id, balance: 0 });
+    }
+    if (!newWorkerCoins) {
+      newWorkerCoins = new Coin({ workerId: newWorker._id, balance: 0 });
+    }
+
+    // Add referral rewards
+    referrerCoins.balance += 50;
+    newWorkerCoins.balance += 30;
+
+    // Save updates
+    await referrerCoins.save();
+    await newWorkerCoins.save();
+
+    return res.status(200).json({
+      message: 'Referral bonus applied successfully',
+      referrerBonus: 50,
+      newWorkerBonus: 30,
+    });
+
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
