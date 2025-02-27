@@ -13,7 +13,7 @@ export const  sendOtpViaWhatsApp = async (phoneNumber, otp) => {
   try {
     const message = await client.messages.create({
       from: `whatsapp:${whatsappNumber}`,
-      to: `whatsapp:${phoneNumber}`,
+      to: `whatsapp:+91${phoneNumber}`,
       body: `Your OTP code is: ${otp}`,
     });
     console.log('OTP sent successfully', message);
