@@ -7,6 +7,7 @@ import Worker from "../models/worker.model.js"
 
 
 import axios from "axios";
+import { sendOtpViaWhatsApp } from "../utils/twillio.js";
 const tlClient = axios.create({
   baseURL: "https://api.textlocal.in/",
   params: {
@@ -48,7 +49,7 @@ export const sendOtp = async (req, res) => {
               { upsert: true, new: true }
             );
     const user = { phoneNumber, verifyCode: otp };
-
+    await sendOtpViaWhatsApp(phoneNumber, otp);
     await smsClient.sendVerificationMessage(user);
     
     res.status(200).json({ message: "OTP sent successfully", otp });
